@@ -32,7 +32,7 @@ This analysis is conducted in R, with visualizations using ggplot to support the
   
 ### Viewing the report
 
-To view the report of the analysis, open the knitted report (the `edu-spend-gss.html` file) at [this address](https://html-preview.github.io/?url=https://github.com/chengzwk/edu-spend-gss/blob/main/stat_inf_project.html)
+To view the report of the analysis, open the knitted report (the `edu-spend-gss.html` file) at [this address](https://html-preview.github.io/?url=https://github.com/chengzwk/edu-spend-gss/blob/main/edu-spend-gss.html)
 
 ### Installing
 
