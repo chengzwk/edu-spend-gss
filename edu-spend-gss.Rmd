@@ -1,10 +1,11 @@
 ---
 title: "Statistical inference with the GSS data"
-output: 
-  html_document: 
+output:
+  html_document:
     fig_height: 4
     highlight: pygments
     theme: spacelab
+  pdf_document: default
 ---
 
 ## Setup
@@ -328,7 +329,7 @@ print(sprintf("Removed %d rows.", nrow_raw - nrow(deg_educ)))
 ```
 
 
-To find out whether the education level, which is the respondent's highest degree, is related to the respondent's opinion on national spending on education, we'll perform a [\chi]-square independence test for these two categorical variables. 
+To find out whether the education level, which is the respondent's highest degree, is related to the respondent's opinion on national spending on education, we'll perform a $\chi$-square independence test for these two categorical variables. 
 
 Let's first summarize our data into a two-way table:
 
@@ -377,7 +378,7 @@ ggplot(deg_educ) +
         plot.title = element_text(hjust = 0.5))  # Center the title
 ```
 
-Let's perform the [\chi]-square independence test.
+Let's perform the $\chi$-square independence test.
 
 **The hypotheses**
 
@@ -398,7 +399,7 @@ $$
 \text{expected count} = \frac{(\text{row total}) \times (\text{column total})}{\text{table total}}
 $$
 
-The conditions are met, we can now perform the [\chi]-square test:
+The conditions are met, we can now perform the $\chi$-square test:
 
 ```{r}
 chisq_stat <- chisq.test(data_table)
