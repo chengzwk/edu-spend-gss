@@ -15,6 +15,9 @@ output:
 library(ggplot2)
 library(dplyr)
 library(statsr)
+library(tidyr)
+library(purrr)
+library(gt)
 ```
 
 ### Load data
@@ -33,25 +36,296 @@ load("gss.Rdata")
 
 ## Part 1: Data
 
+From the [GSS codebook Appendix A](https://gss.norc.org/content/dam/gss/get-documentation/pdf/codebook/GSS_Codebook_AppendixA.pdf), for the 1977+ surveys, the General Social Survey has been using a **full probability sample**. 1972 through 1974 surveys used a modified probability sample, which introduces the quota element at the block level. The 1975 and 1976 studies were conducted with a transitional sample design, viz., one-half full probability and one-half block quota. From the [GSS codebook Appendix B](https://gss.norc.org/content/dam/gss/get-documentation/pdf/codebook/GSS_Codebook_AppendixB.pdf), the data in this survey are collected through interviews, where interviewers answer questionnaires. 
+
+Since the data is collected through random sampling of the population instead of random assignment, the conclusions we draw from the sample is **generalizable to the population**, but we **cannot conclude casual relations** between the explanatory variable and response variable  in our study. 
+
 
 * * *
 
 ## Part 2: Research question
 
+**Research question 1: Public Opinion on Education Spending in the US**
+In this question, I want to investigate the shift in public opinion on education spending in the US over time, more specifically, opinion on the amount of money spent on improving the nation's education system. I want to answer the following three sub-questions:
 
+1.1. What is the proportion of people in the US population who think they're spending too little money on improving the nation's education system in year 1972 - 2012, respectively?
+
+1.2. Has the proportion of people who think they're spending too little money on education increased from year 1972 to year 2012?
+
+1.3. Is there a relationship between education level and the opinion on education spending in the U.S.? 
 
 * * *
 
 ## Part 3: Exploratory data analysis
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button (green button with orange arrow) above. Make sure that your code is visible
-in the project you submit. Delete this note when before you submit your work.
+After loading the data, we can see in the data viewer that the data has 57061 rows, each corresponding to a respondent, and 114 variables. We can refer to the codebook for what the variables represent. 
+
+There're 29 years in total in our data:
+
+```{r}
+gss %>% pull(year) %>% unique()
+```
+
+
+We'll work on the research question 1.1. Let's first extract the data that is relevant to this question, which is the variable "year" and "nateduc", and put it into a new dataframe. 
+
+```{r}
+educ <- gss %>%
+  select(year, nateduc)
+```
+
+Let's look at the "nateduc" variable: 
+
+```{r}
+class(educ$nateduc)
+educ %>% pull(nateduc) %>% unique()
+summary(educ$nateduc)
+```
+
+We can see that the variable "nateduc" is factor type (categorical) with 3 levels, and there're 24806 missing values in the dataset represented by NA. We'll remove rows that contain missing values:
+
+```{r}
+nrow_raw <- nrow(educ)
+educ <- na.omit(educ)
+print(sprintf("Removed %d rows.", nrow_raw - nrow(educ)))
+
+educ %>% pull(year) %>% unique()
+```
+We can see that in year 1972 the data on this variable is missing, which means this question might not have been asked this year. We'll continue our study on the remaining 28 years where data on this variable is present.
+
+The proportion of people who think they're spending "Too Little" on education each year in descending order is:
+
+```{r}
+educ %>%
+  group_by(year) %>%
+  summarize(little_prop = sum(nateduc == "Too Little") / n()) %>%
+  arrange(desc(little_prop))
+```
+We can see that the year that has the highest proportion is 2012 with 74.4%, and the lowest is 1972 with 5.2%. We can plot the proportion each year:
+
+```{r}
+# Calculate the proportion of each category by year
+educ_prop_year <- educ %>%
+  group_by(year) %>%
+  summarize(
+    little_prop = sum(nateduc == "Too Little") / n(),
+    much_prop = sum(nateduc == "Too Much") / n(),
+    about_right_prop = sum(nateduc == "About Right") / n()
+  )
+
+# Define colors that are consistent and visually distinguishable
+color_scheme <- c("Too Little" = "deepskyblue", "Too Much" = "tomato", "About Right" = "goldenrod")
+
+# Create the plot
+ggplot(data = educ_prop_year) +
+  geom_line(aes(x = year, y = little_prop, color = "Too Little"), size = 1.2) +
+  geom_point(aes(x = year, y = little_prop, color = "Too Little"), size = 2.2) +
+  geom_line(aes(x = year, y = much_prop, color = "Too Much"), size = 1.2) +
+  geom_point(aes(x = year, y = much_prop, color = "Too Much"), size = 2.2) +
+  geom_line(aes(x = year, y = about_right_prop, color = "About Right"), size = 1.2) +
+  geom_point(aes(x = year, y = about_right_prop, color = "About Right"), size = 2.2) +
+  scale_color_manual(values = color_scheme) +  # Apply the color scheme
+  labs(
+    title = "Proportion of Opinions on Education Spending by Year",
+    x = "Year",
+    y = "Proportion",
+    color = "Opinion"
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5),
+    legend.title = element_text(face = "bold")
+  )
+
+```
+
+
+Overall, the plot shows a clear upward trend in the proportion of people who think they're spending "Too Little" on education in the US from 1972 to 2012, from about half of the population to almost three thirds. The proportion increased significantly from early 1980s to 2000s, then remained stable until 2010s. The rate of increase is faster between 1980 - 1990, then slowed down between 1990 - 2000. The proportion of people who think they're spending "Too Much" on education decreased since early 1980s to 1990s, and remained stable until 2010s. The proportion of people who think they're spending "About Right" on education stayed very low compared to the other two opinions.
+
 
 * * *
 
 ## Part 4: Inference
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button (green button with orange arrow) above. Make sure that your code is visible
-in the project you submit. Delete this note when before you submit your work.
+We will now study our first sub question by performing inference for a single proportion. We'll work on the proportion of people who think they're spending "Too Little" on education in year 1973 in detail, then apply the same analysis for the other years.
+
+We'll compute the 95% confidence interval for the population proportion of people who think they're spending "Too Little" in year 1973 using the Central Limit Theorem. First, let's check the conditions for applying the CLT:
+
+1. *Independence*: as discussed in the **Data** section, the data is collected from random sampling. Sample size n = 1434, which is smaller than 10% of the US population in year 1973. Therefore, we can assume the samples are independent of each other.
+
+```{r}
+educ %>%
+  filter(year == 1973) %>%
+  summarize(n())
+```
+2. *Sample size/skew*: in the sample for year 1973, there're 734 success cases ("Too Little") and 700 failures (other opinions), which satisfies the condition of 10 successes/failures.
+
+```{r}
+educ %>%
+  filter(year == 1973) %>%
+  summarize(n_suc = sum(nateduc == "Too Little"), n_fail = n() - n_suc)
+```
+The conditions are met. By CLT, the confidence interval for a population proportion is [\hat{p} \pm z^\star \sqrt{\frac{\hat{p}(1-\hat{p})}{n}} ]
+
+```{r}
+educ_1973 <- educ %>%
+  filter(year == 1973) %>%
+  mutate(opinion = ifelse(nateduc == "Too Little", "Too Little", "other"))
+
+inference(y = opinion, data = educ_1973, statistic = "proportion", type = "ci", method = "theoretical", success = "Too Little")
+```
+
+We are 95% confident that the population proportion of people who think they're spending "Too Little" on education in the US in year 1973 is between 48.6% to 53.8%. That is to say, if we take the random sample of size n = 1434 repetitively and compute the confidence interval, 95% the times the CI would capture the true population proportion.
+
+Let's use `nest` and `inference` to compute the 95% confidence interval for years 1973 - 2012. 
+
+```{r}
+# Make a new binary categorical variable "opinion"
+educ <- educ %>%
+  mutate(opinion = ifelse(nateduc == "Too Little", "Too Little", "other"))
+
+# Group by year and nest the data
+ci_prop_little <- educ %>%
+  group_by(year) %>%
+  nest() %>%
+  mutate(ci_data = map(data, ~ {
+    suppressMessages(suppressWarnings({
+      inf_output <- inference(y = opinion, data = ., statistic ="proportion", type = "ci", method = "theoretical", success = "Too Little", verbose = FALSE)
+      c(lower = inf_output[[3]][1], upper = inf_output[[3]][2])
+      })) 
+    })) %>%
+  unnest_wider(ci_data) %>%  # Expand `ci_data` into `lower` and `upper` columns
+  mutate(p_hat = (lower + upper) / 2) %>%  # Calculate `p_hat`
+  select(year, p_hat, lower, upper)
+```
+
+Let's plot the confidence interval of the population proportion of people who think they're spending "Too Little" on education in year 1973 - 2012:
+
+```{r}
+ggplot(ci_prop_little, aes(x = year, y = p_hat)) + 
+  geom_line(color = "deepskyblue", size = 1.2) +  # Thicker blue line for better visibility
+  geom_pointrange(aes(ymin = lower, ymax = upper), 
+                  color = "darkblue", 
+                  size = 1, 
+                  shape = 21, 
+                  fill = "white", # White fill for points
+                  stroke = 1.5) +  # Thicker border around points
+  labs(title = "Proportion of Opinion with Confidence Interval",
+       x = "Year",
+       y = "Proportion",
+       caption = "Error bars represent 95% Confidence Intervals") + 
+  theme_minimal() +  # Minimal theme for a clean look
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Center title with larger font
+    axis.title.x = element_text(size = 14),  # Larger x-axis title
+    axis.title.y = element_text(size = 14),  # Larger y-axis title
+    axis.text = element_text(size = 12),  # Larger axis text
+    panel.grid.minor = element_blank(),  # Remove minor grid lines for a cleaner look
+    panel.grid.major = element_line(color = "lightgrey")  # Light color for major grid lines
+  ) +
+  scale_y_continuous(labels = scales::percent)
+```
+
+This plot shows the change in the proportion of people who think they're spending "Too Little" on education in the US population. We're 95% confident that the actual proportion falls within the confidence interval. This plot shows a clear upward trend in the proportion, taking the error in the estimation into consideration.
+
+So far we have answered research question 1.1, let's work on question 1.2. From the plot above, we can see that the proportion of underfunded education has increased between year 1973 and 2012. To answer this question with more certainty, we'll perform a hypothesis test for comparing two independent proportions at 5% significance level.
+
+**The hypotheses**
+
+Let the population proportion of atheists in year 1973 be [p_1], and year 2012 be [p_2 ]. We want to test whether the population proportion has increased in year 2012 compared to year 1973.
+\[H_0: p_1 = p_2 \]
+\[H_A: p_2 > p_1 \]
+
+**Check conditions**
+
+*(1) Independence*
+Within groups: In year 1973 and 2012, both samples are obtained with random sampling from the population. In both years, the sample size is smaller than 10% of the US population of that year. 
+
+Between groups: The 1973 and 2012 sample are independence of each other.
+
+```{r}
+educ %>%
+  filter(year == 2012) %>%
+  summarize(n())
+```
+Therefore, we can assume the independence condition is met.
+
+*(2) Sample size/skew*
+Previously we checked the success-failure condition for year 1973 is met. Let's check for year 2012 with the same method:
+
+```{r}
+educ %>%
+  filter(year == 2012) %>%
+  summarize(n_suc = sum(nateduc == "Too Little"), n_fail = n() - n_suc)
+```
+
+in the sample for year 2012, there're 733 success cases and 252 failures, which satisfies the condition of 10 successes/failures.
+
+Let's perform the hypothesis test with `inference`:
+
+```{r}
+ht_data <- educ %>%
+  filter(year %in% c(1973, 2012))
+
+inference(y = opinion, x = year, data = ht_data, statistic = "proportion", type = "ht", alternative = 'less', method = "theoretical", success = "Too Little")
+```
+
+The result shows that the p-value is smaller than 0.0001, which is smaller than our significance level 0.05. Therefore we reject the null hypothesis. The data provide convincing evidence for the alternative hypothesis, aka, the proportion of people who think they're spending "Too Little" on education in the US population has increased from year 1973 to year 2012. 
+
+Let's extract the data that is relevant to question 1.3 to a new dataframe. Here we'll be performing our [\chi]-square test over data of all years in the sample, so the "year" variable is irrelevant:
+
+```{r}
+deg_educ <- gss %>%
+  select(degree, nateduc)
+```
+
+Let's look at the "degree" variable: 
+
+```{r}
+class(deg_educ$degree)
+deg_educ %>% pull(degree) %>% unique()
+summary(deg_educ$degree)
+```
+We can see that the variable "degree" is factor type (categorical) with 5 levels, and there're 1010 missing values in the dataset represented by NA. We'll remove rows that contain missing values:
+
+```{r}
+nrow_raw <- nrow(deg_educ)
+deg_educ <- na.omit(deg_educ)
+print(sprintf("Removed %d rows.", nrow_raw - nrow(deg_educ)))
+```
+
+
+To find out whether the education level, which is the respondent's highest degree, is related to the respondent's opinion on national spending on education, we'll perform a [\chi]-square independence test for these two categorical variables. 
+
+Let's first summarize our data into a two-way table:
+
+```{r}
+# Create the two-way table with totals
+two_way_table <- deg_educ %>%
+  count(degree, nateduc) %>%
+  pivot_wider(names_from = nateduc, values_from = n) %>%
+  mutate(Total = `Too Little` + `Too Much` + `About Right`)  # Add row total for each degree
+
+# Add column total for atheist and religious
+two_way_table <- two_way_table %>%
+  bind_rows(
+    summarise(., degree = "Total", across(`Too Little`:Total, sum))
+  )
+```
+
+```{r}
+# transpose the table
+transposed_table <- two_way_table %>%
+  pivot_longer(cols = -degree, names_to = " ", values_to = "count") %>%
+  pivot_wider(names_from = degree, values_from = count)
+```
+
+
+```{r}
+# Display the table using `gt` for formatted output
+transposed_table %>%
+  gt() %>%
+  tab_header(title = "Distribution of Opinion by Degree") %>%
+  fmt_number(decimals = 0)
+```
