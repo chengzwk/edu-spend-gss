@@ -405,7 +405,7 @@ chisq_stat <- chisq.test(data_table)
 
 chisq_stat
 ```
-The test statistic is 42.8, and the p-value is smaller than 0.01. Therefore, we can reject the null hypothesis. We're 99% confident that the opinion on education spending and education level in year 2012 are independent.
+The test statistic is 42.8, and the p-value is smaller than 0.01. Therefore, we can reject the null hypothesis. We're 99% confident that the opinion on education spending and education level in year 2012 are dependent.
 
 The expected count is given by:
 
