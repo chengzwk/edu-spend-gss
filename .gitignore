@@ -58,5 +58,3 @@ rsconnect/
 # pdf files
 *.pdf 
 
-# Knitted R Markdown file
-*.html
