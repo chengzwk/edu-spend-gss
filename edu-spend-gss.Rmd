@@ -52,7 +52,7 @@ In this question, I want to investigate the shift in public opinion on education
 
 1.2. Has the proportion of people who think they're spending too little money on education increased from year 1972 to year 2012?
 
-1.3. Is there a relationship between education level and the opinion on education spending in the U.S.? 
+1.3. Is there a relationship between education level and the opinion on education spending in the U.S. in year 2012? 
 
 * * *
 
@@ -114,7 +114,7 @@ educ_prop_year <- educ %>%
   )
 
 # Define colors that are consistent and visually distinguishable
-color_scheme <- c("Too Little" = "deepskyblue", "Too Much" = "tomato", "About Right" = "goldenrod")
+color_scheme <- c("Too Little" = "deepskyblue", "Too Much" = "tomato", "About Right" = "mediumseagreen")
 
 # Create the plot
 ggplot(data = educ_prop_year) +
@@ -143,6 +143,28 @@ ggplot(data = educ_prop_year) +
 
 Overall, the plot shows a clear upward trend in the proportion of people who think they're spending "Too Little" on education in the US from 1972 to 2012, from about half of the population to almost three thirds. The proportion increased significantly from early 1980s to 2000s, then remained stable until 2010s. The rate of increase is faster between 1980 - 1990, then slowed down between 1990 - 2000. The proportion of people who think they're spending "Too Much" on education decreased since early 1980s to 1990s, and remained stable until 2010s. The proportion of people who think they're spending "About Right" on education stayed very low compared to the other two opinions.
 
+We can also visualize this change with standardized stacked barplot for proportions of the three opinions over years:
+
+```{r}
+# Create a styled stacked bar plot with proportions
+ggplot(educ) +
+  aes(x = year, fill = nateduc) +
+  geom_bar(position = "fill", width = 0.7) +
+  scale_fill_manual(values = c("Too Little" = "deepskyblue", 
+                                "About Right" = "mediumseagreen", 
+                                "Too Much" = "tomato")) +
+  labs(x = "Year", y = "Proportion", fill = "Opinion",
+       title = "Proportion of Opinions on Education Spending by Year") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top",
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5))  # Center the title
+```
+
+
+
 
 * * *
 
@@ -166,7 +188,11 @@ educ %>%
   filter(year == 1973) %>%
   summarize(n_suc = sum(nateduc == "Too Little"), n_fail = n() - n_suc)
 ```
-The conditions are met. By CLT, the confidence interval for a population proportion is [\hat{p} \pm z^\star \sqrt{\frac{\hat{p}(1-\hat{p})}{n}} ]
+The conditions are met. By CLT, the confidence interval for a population proportion is 
+
+$$
+\hat{p} \pm z^\star \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}
+$$
 
 ```{r}
 educ_1973 <- educ %>%
@@ -233,13 +259,17 @@ So far we have answered research question 1.1, let's work on question 1.2. From 
 
 **The hypotheses**
 
-Let the population proportion of atheists in year 1973 be [p_1], and year 2012 be [p_2 ]. We want to test whether the population proportion has increased in year 2012 compared to year 1973.
-\[H_0: p_1 = p_2 \]
-\[H_A: p_2 > p_1 \]
+Let the population proportion of atheists in year 1973 be $p_1$, and year 2012 be $p_2$. We want to test whether the population proportion has increased in year 2012 compared to year 1973.
+
+$$
+H_0: p_1 = p_2 \\
+H_A: p_2 > p_1
+$$
 
 **Check conditions**
 
 *(1) Independence*
+
 Within groups: In year 1973 and 2012, both samples are obtained with random sampling from the population. In both years, the sample size is smaller than 10% of the US population of that year. 
 
 Between groups: The 1973 and 2012 sample are independence of each other.
@@ -252,6 +282,7 @@ educ %>%
 Therefore, we can assume the independence condition is met.
 
 *(2) Sample size/skew*
+
 Previously we checked the success-failure condition for year 1973 is met. Let's check for year 2012 with the same method:
 
 ```{r}
@@ -273,10 +304,11 @@ inference(y = opinion, x = year, data = ht_data, statistic = "proportion", type 
 
 The result shows that the p-value is smaller than 0.0001, which is smaller than our significance level 0.05. Therefore we reject the null hypothesis. The data provide convincing evidence for the alternative hypothesis, aka, the proportion of people who think they're spending "Too Little" on education in the US population has increased from year 1973 to year 2012. 
 
-Let's extract the data that is relevant to question 1.3 to a new dataframe. Here we'll be performing our [\chi]-square test over data of all years in the sample, so the "year" variable is irrelevant:
+Let's filter the data that is relevant to question 1.3 to a new dataframe.
 
 ```{r}
 deg_educ <- gss %>%
+  filter(year == 2012) %>%
   select(degree, nateduc)
 ```
 
@@ -287,7 +319,7 @@ class(deg_educ$degree)
 deg_educ %>% pull(degree) %>% unique()
 summary(deg_educ$degree)
 ```
-We can see that the variable "degree" is factor type (categorical) with 5 levels, and there're 1010 missing values in the dataset represented by NA. We'll remove rows that contain missing values:
+We can see that the variable "degree" is factor type (categorical) with 5 levels, and there're 8 missing values in the dataset represented by NA. We'll remove rows that contain missing values:
 
 ```{r}
 nrow_raw <- nrow(deg_educ)
@@ -301,31 +333,83 @@ To find out whether the education level, which is the respondent's highest degre
 Let's first summarize our data into a two-way table:
 
 ```{r}
-# Create the two-way table with totals
-two_way_table <- deg_educ %>%
-  count(degree, nateduc) %>%
-  pivot_wider(names_from = nateduc, values_from = n) %>%
-  mutate(Total = `Too Little` + `Too Much` + `About Right`)  # Add row total for each degree
+# Create the two-way table
+data_table <- table(deg_educ$nateduc, deg_educ$degree)
 
-# Add column total for atheist and religious
-two_way_table <- two_way_table %>%
-  bind_rows(
-    summarise(., degree = "Total", across(`Too Little`:Total, sum))
+# Add totals
+data_table_total <- addmargins(data_table)
+```
+
+
+```{r}
+# Print the table
+gt_table <- as.data.frame.matrix(data_table_total)
+
+gt_table %>%
+ gt(rownames_to_stub = TRUE) %>%
+    tab_header(title = "Opinion on Education Spending by Highest Degree") %>%
+  tab_options(
+    table.font.size = 12,
+    table.font.color = "black",
+    table.background.color = "white",
+    column_labels.font.weight = "bold"
   )
+
 ```
+
+Let's create a standardized stacked barplot to visually represent the data:
 
 ```{r}
-# transpose the table
-transposed_table <- two_way_table %>%
-  pivot_longer(cols = -degree, names_to = " ", values_to = "count") %>%
-  pivot_wider(names_from = degree, values_from = count)
+# Create a styled stacked bar plot with proportions
+ggplot(deg_educ) +
+  aes(x = degree, fill = nateduc) +
+  geom_bar(position = "fill", width = 0.7) +
+  scale_fill_manual(values = c("Too Little" = "deepskyblue", 
+                                "About Right" = "mediumseagreen", 
+                                "Too Much" = "tomato")) +
+  labs(x = "Hightest degree", y = "Proportion", fill = "Opinion",
+       title = "Proportion of Opinions on Education Spending (2012)") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top",
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5))  # Center the title
 ```
 
+Let's perform the [\chi]-square independence test.
+
+**The hypotheses**
+
+$H_0$: the opinion on education spending and education level (represented by the respondent's highest degree) in year 2012 are independent.
+$H_A$: the opinion on education spending and education level (represented by the respondent's highest degree) in year 2012 are dependent.
+
+**Check conditions**
+
+*(1) Independence*
+
+As discussed in the **Data** section, the data is collected from random sampling. From the two-way table, each entry is smaller than 10% of the US population. Each case can only enter one cell in the table. Therefore, we can assume the samples are independent of each other.
+
+*(2) Sample size*
+
+As shown in the expected count table at the end of this analysis, each cell have >5 expected cases. The expected count it calculated by:
+
+$$
+\text{expected count} = \frac{(\text{row total}) \times (\text{column total})}{\text{table total}}
+$$
+
+The conditions are met, we can now perform the [\chi]-square test:
 
 ```{r}
-# Display the table using `gt` for formatted output
-transposed_table %>%
-  gt() %>%
-  tab_header(title = "Distribution of Opinion by Degree") %>%
-  fmt_number(decimals = 0)
+chisq_stat <- chisq.test(data_table)
+
+chisq_stat
 ```
+The test statistic is 42.8, and the p-value is smaller than 0.01. Therefore, we can reject the null hypothesis. We're 99% confident that the opinion on education spending and education level in year 2012 are independent.
+
+The expected count is given by:
+
+```{r}
+chisq_stat$expected
+```
+
